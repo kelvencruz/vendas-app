@@ -11,12 +11,13 @@ export default function NovaVenda() {
   const [cliente, setCliente] = useState('')
   const [quantidade, setQuantidade] = useState('')
   const [valorUnit, setValorUnit] = useState('')
+  const [pesoBalde, setPesoBalde] = useState('20')
   const [loading, setLoading] = useState(false)
   const [sucesso, setSucesso] = useState(false)
   const [erro, setErro] = useState('')
 
   const totalVenda = produto === 'Atacado'
-    ? Number(quantidade) * 20 * Number(valorUnit)
+    ? Number(quantidade) * Number(pesoBalde) * Number(valorUnit)
     : Number(quantidade) * Number(valorUnit)
 
   function limparFormulario() {
@@ -24,10 +25,14 @@ export default function NovaVenda() {
     setCliente('')
     setQuantidade('')
     setValorUnit('')
+    setPesoBalde('20')
   }
 
   async function salvarVenda() {
     setErro('')
+    if (produto === 'Atacado' && (!pesoBalde || Number(pesoBalde) <= 0)) {
+      return setErro('Informe o peso do balde.')
+    }
     setLoading(true)
     try {
       await criarVenda({
@@ -35,7 +40,8 @@ export default function NovaVenda() {
         cliente,
         quantidade,
         valorUnitario: valorUnit,
-        userId: usuario.id
+        userId: usuario.id,
+        pesoBalde: produto === 'Atacado' ? Number(pesoBalde) : null
       })
       setSucesso(true)
       limparFormulario()
@@ -112,6 +118,25 @@ export default function NovaVenda() {
             />
           </div>
 
+          {/* Peso por balde — só aparece no Atacado */}
+          {produto === 'Atacado' && (
+            <div>
+              <label className="block text-amber-900 font-bold mb-1">
+                Peso por balde (kg) *
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="0.5"
+                value={pesoBalde}
+                onChange={e => setPesoBalde(e.target.value)}
+                placeholder="Ex: 20"
+                className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500"
+              />
+              <p className="text-amber-600 text-xs mt-1">Padrão 20kg — ajuste se necessário (15kg, 25kg, 33kg...)</p>
+            </div>
+          )}
+
           {/* Valor unitário */}
           <div>
             <label className="block text-amber-900 font-bold mb-1">
@@ -135,8 +160,10 @@ export default function NovaVenda() {
               <div className="text-amber-900 text-2xl font-bold">
                 R$ {totalVenda.toFixed(2).replace('.', ',')}
               </div>
-              {produto === 'Atacado' && (
-                <div className="text-amber-600 text-sm">{Number(quantidade) * 20} kg</div>
+              {produto === 'Atacado' && pesoBalde && (
+                <div className="text-amber-600 text-sm">
+                  {Number(quantidade)} bal. × {Number(pesoBalde)}kg = {Number(quantidade) * Number(pesoBalde)}kg total
+                </div>
               )}
             </div>
           )}
