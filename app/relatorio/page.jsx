@@ -15,21 +15,27 @@ export default function Relatorio() {
     carregarVendas()
   }, [])
 
-  async function carregarVendas() {
-    const { data } = await supabase
-      .from('vendas')
-      .select('*')
-      .eq('cancelado', false)
-      .order('created_at', { ascending: false })
-
-    if (data) {
-      setVendas(data)
-      const meses = [...new Set(data.map(v => v.mes))].filter(Boolean)
-      setMesesDisponiveis(meses)
-      if (meses.length > 0) setMesSelecionado(meses[0])
-    }
+ async function carregarVendas() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    window.location.href = '/login'
+    return
   }
 
+  const { data } = await supabase
+    .from('vendas')
+    .select('*')
+    .eq('cancelado', false)
+    .eq('user_id', session.user.id)  // ← só vendas do usuário logado
+    .order('created_at', { ascending: false })
+
+  if (data) {
+    setVendas(data)
+    const meses = [...new Set(data.map(v => v.mes))].filter(Boolean)
+    setMesesDisponiveis(meses)
+    if (meses.length > 0) setMesSelecionado(meses[0])
+  }
+}
   const vendasFiltradas = vendas.filter(v => v.mes === mesSelecionado)
 
   function totalProduto(produto) {

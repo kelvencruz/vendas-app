@@ -11,15 +11,22 @@ export default function Vendas() {
   }, [])
 
   async function carregarVendas() {
-    const { data, error } = await supabase
-      .from('vendas')
-      .select('*')
-      .eq('cancelado', false)
-      .order('created_at', { ascending: false })
-
-    if (!error) setVendas(data)
-    setLoading(false)
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    window.location.href = '/login'
+    return
   }
+
+  const { data, error } = await supabase
+    .from('vendas')
+    .select('*')
+    .eq('cancelado', false)
+    .eq('user_id', session.user.id)  // ← só vendas do usuário logado
+    .order('created_at', { ascending: false })
+
+  if (!error) setVendas(data)
+  setLoading(false)
+}
 
   async function cancelarVenda(id) {
     if (!confirm('Cancelar essa venda?')) return
