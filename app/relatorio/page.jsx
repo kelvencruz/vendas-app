@@ -58,16 +58,12 @@ export default function Relatorio() {
     }
   }
 
-  const vendasFiltradas = vendas.filter(v => v.mes === mesSelecionado)
-
-  // Filtra gastos pelo mesmo mês selecionado (formato MM/YYYY)
   const gastosFiltrados = gastos.filter(g => {
-    if (!g.created_at) return false
-    const data = new Date(g.created_at)
-    const mes = String(data.getMonth() + 1).padStart(2, '0')
-    const ano = data.getFullYear()
-    return `${mes}/${ano}` === mesSelecionado
-  })
+  if (!g.created_at) return false
+  const data = new Date(g.created_at)
+  const mesExtenso = data.toLocaleString('pt-BR', { month: 'long' }) + '/' + data.getFullYear()
+  return mesExtenso === mesSelecionado
+})
 
   function totalProduto(produto) {
     return calcularTotalPorProduto(vendasFiltradas, produto)
