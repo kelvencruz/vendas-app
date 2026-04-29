@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 const CATEGORIAS = ['Combustível', 'Alimentação', 'Equipamentos', 'Manutenção', 'Outros']
 
 export default function NovoGasto() {
-  const { usuario, loading } = useAuth() as any
+  const { usuario, loading } = useAuth()
   const router = useRouter()
   const [descricao, setDescricao] = useState('')
   const [valor, setValor] = useState('')
