@@ -2,8 +2,10 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { listarVendasRelatorio, calcularTotalPorProduto, calcularQuantidadePorProduto } from '@/services/vendasService'
+import { listarGastos } from '@/services/gastosService'
 
 const PRODUTOS = ['Mel Pequeno', 'Mel Grande', 'Favo Grande', 'Atacado']
+const CATEGORIAS_GASTO = ['Embalagens e Venda', 'Logística', 'Insumos e Produção', 'Equipamentos', 'Outros']
 
 const cores = {
   'Mel Pequeno': 'bg-yellow-100',
@@ -22,13 +24,17 @@ const coresPDF = {
 export default function Relatorio() {
   const { usuario, loading: loadingAuth } = useAuth()
   const [vendas, setVendas] = useState([])
+  const [gastos, setGastos] = useState([])
   const [mesSelecionado, setMesSelecionado] = useState('')
   const [mesesDisponiveis, setMesesDisponiveis] = useState([])
   const [exportando, setExportando] = useState(false)
   const [erro, setErro] = useState('')
 
   useEffect(() => {
-    if (usuario) carregarVendas()
+    if (usuario) {
+      carregarVendas()
+      carregarGastos()
+    }
   }, [usuario])
 
   async function carregarVendas() {
@@ -43,7 +49,25 @@ export default function Relatorio() {
     }
   }
 
+  async function carregarGastos() {
+    try {
+      const data = await listarGastos()
+      setGastos(data)
+    } catch (err) {
+      setErro(err.message)
+    }
+  }
+
   const vendasFiltradas = vendas.filter(v => v.mes === mesSelecionado)
+
+  // Filtra gastos pelo mesmo mês selecionado (formato MM/YYYY)
+  const gastosFiltrados = gastos.filter(g => {
+    if (!g.created_at) return false
+    const data = new Date(g.created_at)
+    const mes = String(data.getMonth() + 1).padStart(2, '0')
+    const ano = data.getFullYear()
+    return `${mes}/${ano}` === mesSelecionado
+  })
 
   function totalProduto(produto) {
     return calcularTotalPorProduto(vendasFiltradas, produto)
@@ -57,7 +81,15 @@ export default function Relatorio() {
     return vendasFiltradas.filter(v => v.produto === produto).length
   }
 
+  function totalGastoCategoria(categoria) {
+    return gastosFiltrados
+      .filter(g => g.categoria === categoria)
+      .reduce((acc, g) => acc + Number(g.valor), 0)
+  }
+
   const totalMes = vendasFiltradas.reduce((acc, v) => acc + Number(v.total_venda), 0)
+  const totalGastosMes = gastosFiltrados.reduce((acc, g) => acc + Number(g.valor), 0)
+  const saldoMes = totalMes - totalGastosMes
   const ticketMedio = vendasFiltradas.length > 0 ? totalMes / vendasFiltradas.length : 0
 
   // ── Exportar PDF ────────────────────────────────────────────────────────────
@@ -70,7 +102,6 @@ export default function Relatorio() {
       const margin = 15
       let y = 20
 
-      // Cabeçalho
       doc.setFillColor(120, 53, 15)
       doc.rect(0, 0, W, 30, 'F')
       doc.setTextColor(255, 255, 255)
@@ -83,23 +114,24 @@ export default function Relatorio() {
       doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, W - margin, 22, { align: 'right' })
       y = 42
 
-      // Cards resumo
+      // Cards resumo (agora 4: vendas, gastos, saldo, ticket)
       doc.setTextColor(0, 0, 0)
-      const cardW = (W - margin * 2 - 10) / 3
+      const cardW = (W - margin * 2 - 15) / 4
       const cards = [
-        { label: 'Total do Mes', value: `R$ ${totalMes.toFixed(2).replace('.', ',')}` },
-        { label: 'Num. de Vendas', value: vendasFiltradas.length.toString() },
-        { label: 'Ticket Medio', value: `R$ ${ticketMedio.toFixed(2).replace('.', ',')}` }
+        { label: 'Total Vendido', value: `R$ ${totalMes.toFixed(2).replace('.', ',')}`, cor: [254, 243, 199] },
+        { label: 'Total Gastos', value: `R$ ${totalGastosMes.toFixed(2).replace('.', ',')}`, cor: [254, 226, 226] },
+        { label: 'Saldo', value: `R$ ${saldoMes.toFixed(2).replace('.', ',')}`, cor: saldoMes >= 0 ? [220, 252, 231] : [254, 226, 226] },
+        { label: 'Ticket Medio', value: `R$ ${ticketMedio.toFixed(2).replace('.', ',')}`, cor: [254, 243, 199] }
       ]
       cards.forEach((card, i) => {
         const x = margin + i * (cardW + 5)
-        doc.setFillColor(254, 243, 199)
+        doc.setFillColor(...card.cor)
         doc.roundedRect(x, y, cardW, 20, 2, 2, 'F')
-        doc.setFontSize(8)
+        doc.setFontSize(7)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(120, 53, 15)
         doc.text(card.label, x + cardW / 2, y + 7, { align: 'center' })
-        doc.setFontSize(12)
+        doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(69, 26, 3)
         doc.text(card.value, x + cardW / 2, y + 16, { align: 'center' })
@@ -130,19 +162,16 @@ export default function Relatorio() {
         const total = totalProduto(p)
         const ticket = n > 0 ? (total / n).toFixed(2).replace('.', ',') : '0,00'
         const cor = coresPDF[p] || [245, 245, 245]
-
         doc.setFillColor(...cor)
         doc.rect(margin, y, W - margin * 2, 8, 'F')
         doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(69, 26, 3)
-
         const vals = [p, n.toString(), `${qtd} ${p === 'Atacado' ? 'bal.' : 'un.'}`, `R$ ${ticket}`, `R$ ${total.toFixed(2).replace('.', ',')}`]
         vals.forEach((v, i) => doc.text(v, colX[i] + 2, y + 5.5))
         y += 8
       })
 
-      // Linha total
       doc.setFillColor(120, 53, 15)
       doc.rect(margin, y, W - margin * 2, 8, 'F')
       doc.setFontSize(9)
@@ -154,6 +183,55 @@ export default function Relatorio() {
       doc.text('—', colX[3] + 2, y + 5.5)
       doc.text(`R$ ${totalMes.toFixed(2).replace('.', ',')}`, colX[4] + 2, y + 5.5)
       y += 14
+
+      // Tabela gastos por categoria
+      if (y > 220) { doc.addPage(); y = 20 }
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text('Gastos por Categoria', margin, y)
+      y += 6
+
+      doc.setFillColor(185, 28, 28)
+      doc.rect(margin, y, W - margin * 2, 8, 'F')
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      doc.text('Categoria', margin + 2, y + 5.5)
+      doc.text('Total', W - margin - 2, y + 5.5, { align: 'right' })
+      y += 8
+
+      CATEGORIAS_GASTO.forEach((cat, idx) => {
+        const total = totalGastoCategoria(cat)
+        doc.setFillColor(idx % 2 === 0 ? 254 : 252, idx % 2 === 0 ? 226 : 220, idx % 2 === 0 ? 226 : 220)
+        doc.rect(margin, y, W - margin * 2, 8, 'F')
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(127, 29, 29)
+        doc.text(cat, margin + 2, y + 5.5)
+        doc.text(`R$ ${total.toFixed(2).replace('.', ',')}`, W - margin - 2, y + 5.5, { align: 'right' })
+        y += 8
+      })
+
+      doc.setFillColor(185, 28, 28)
+      doc.rect(margin, y, W - margin * 2, 8, 'F')
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      doc.text('TOTAL DE GASTOS', margin + 2, y + 5.5)
+      doc.text(`R$ ${totalGastosMes.toFixed(2).replace('.', ',')}`, W - margin - 2, y + 5.5, { align: 'right' })
+      y += 14
+
+      // Saldo final
+      if (y > 250) { doc.addPage(); y = 20 }
+      doc.setFillColor(saldoMes >= 0 ? 21 : 185, saldoMes >= 0 ? 128 : 28, saldoMes >= 0 ? 61 : 28)
+      doc.rect(margin, y, W - margin * 2, 12, 'F')
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      doc.text('SALDO DO MES', margin + 2, y + 8)
+      doc.text(`R$ ${saldoMes.toFixed(2).replace('.', ',')}`, W - margin - 2, y + 8, { align: 'right' })
+      y += 20
 
       // Ranking
       if (y > 220) { doc.addPage(); y = 20 }
@@ -178,7 +256,7 @@ export default function Relatorio() {
       })
       y += 8
 
-      // Histórico detalhado
+      // Histórico vendas
       if (y > 220) { doc.addPage(); y = 20 }
       doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
@@ -283,6 +361,46 @@ export default function Relatorio() {
               <div className="text-xs text-amber-600">Ticket médio</div>
               <div className="font-bold text-amber-900">R$ {ticketMedio.toFixed(2).replace('.', ',')}</div>
             </div>
+          </div>
+        </div>
+
+        {/* Cards de balanço */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-amber-100 rounded-xl p-5 text-center shadow">
+            <div className="text-xs text-amber-700 mb-1">💰 Total Vendido</div>
+            <div className="text-2xl font-bold text-amber-900">R$ {totalMes.toFixed(2).replace('.', ',')}</div>
+          </div>
+          <div className="bg-red-100 rounded-xl p-5 text-center shadow">
+            <div className="text-xs text-red-700 mb-1">💸 Total Gasto</div>
+            <div className="text-2xl font-bold text-red-900">R$ {totalGastosMes.toFixed(2).replace('.', ',')}</div>
+          </div>
+          <div className={`${saldoMes >= 0 ? 'bg-green-100' : 'bg-red-200'} rounded-xl p-5 text-center shadow`}>
+            <div className={`text-xs mb-1 ${saldoMes >= 0 ? 'text-green-700' : 'text-red-700'}`}>🟢 Saldo</div>
+            <div className={`text-2xl font-bold ${saldoMes >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+              R$ {saldoMes.toFixed(2).replace('.', ',')}
+            </div>
+          </div>
+        </div>
+
+        {/* Gastos por categoria */}
+        <div className="bg-white rounded-xl shadow overflow-hidden mb-6">
+          <div className="bg-red-700 text-white p-4 font-bold">💸 Gastos por Categoria</div>
+          {CATEGORIAS_GASTO.map(cat => {
+            const total = totalGastoCategoria(cat)
+            const percentual = totalGastosMes > 0 ? ((total / totalGastosMes) * 100).toFixed(0) : 0
+            return (
+              <div key={cat} className="p-4 flex justify-between items-center border-b border-red-50 hover:bg-red-50 transition">
+                <div className="font-medium text-gray-800">{cat}</div>
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-gray-500">{percentual}%</div>
+                  <div className="font-bold text-red-800">R$ {total.toFixed(2).replace('.', ',')}</div>
+                </div>
+              </div>
+            )
+          })}
+          <div className="bg-red-700 text-white p-4 flex justify-between font-bold">
+            <div>TOTAL DE GASTOS</div>
+            <div>R$ {totalGastosMes.toFixed(2).replace('.', ',')}</div>
           </div>
         </div>
 
