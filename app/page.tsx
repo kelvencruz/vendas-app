@@ -4,7 +4,7 @@ import { supabase } from './supabase'
 
 export default function Home() {
   const [loading, setLoading] = useState(true)
-  const [usuario, setUsuario] = useState(null)
+  const [usuario, setUsuario] = useState<any>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
