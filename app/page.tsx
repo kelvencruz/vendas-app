@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { logout } from '@/services/authService'
 
 export default function Home() {
-  const { usuario, loading } = useAuth()
+  const { usuario, loading } = useAuth() as { usuario: any, loading: boolean }
 
   async function sair() {
     await logout()
