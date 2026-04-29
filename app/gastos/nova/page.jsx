@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { criarGasto } from '@/services/gastosService'
 import { useRouter } from 'next/navigation'
 
-const CATEGORIAS = ['Combustível', 'Alimentação', 'Equipamentos', 'Manutenção', 'Outros']
+const CATEGORIAS = ['Embalagens e Venda', 'Logística', 'Insumos e Produção', 'Equipamentos', 'Outros']
 
 export default function NovoGasto() {
   const { usuario, loading } = useAuth()
