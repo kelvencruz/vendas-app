@@ -1,61 +1,57 @@
 'use client'
 import { useState } from 'react'
-import { supabase } from '../../supabase'
+import { useAuth } from '@/hooks/useAuth'
+import { criarVenda } from '@/services/vendasService'
 
 const PRODUTOS = ['Mel Pequeno', 'Mel Grande', 'Favo Grande', 'Atacado']
 
 export default function NovaVenda() {
+  const { usuario, loading: loadingAuth } = useAuth()
   const [produto, setProduto] = useState('')
   const [cliente, setCliente] = useState('')
   const [quantidade, setQuantidade] = useState('')
   const [valorUnit, setValorUnit] = useState('')
   const [loading, setLoading] = useState(false)
   const [sucesso, setSucesso] = useState(false)
+  const [erro, setErro] = useState('')
 
   const totalVenda = produto === 'Atacado'
     ? Number(quantidade) * 20 * Number(valorUnit)
     : Number(quantidade) * Number(valorUnit)
 
+  function limparFormulario() {
+    setProduto('')
+    setCliente('')
+    setQuantidade('')
+    setValorUnit('')
+  }
+
   async function salvarVenda() {
-    if (!produto || !quantidade || !valorUnit) {
-      alert('Preencha todos os campos obrigatórios!')
-      return
-    }
+    setErro('')
     setLoading(true)
-
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      window.location.href = '/login'
-      return
-    }
-
-    const agora = new Date()
-    const mes = agora.toLocaleString('pt-BR', { month: 'long' }) + '/' + agora.getFullYear()
-
-    const { error } = await supabase.from('vendas').insert([{
-      data: agora.toISOString().split('T')[0],
-      hora: agora.toTimeString().split(' ')[0],
-      produto,
-      cliente,
-      quantidade: Number(quantidade),
-      valor_unitario: Number(valorUnit),
-      total_venda: totalVenda,
-      mes,
-      user_id: session.user.id
-    }])
-
-    setLoading(false)
-    if (error) {
-      alert('Erro ao salvar: ' + error.message)
-    } else {
+    try {
+      await criarVenda({
+        produto,
+        cliente,
+        quantidade,
+        valorUnitario: valorUnit,
+        userId: usuario.id
+      })
       setSucesso(true)
-      setProduto('')
-      setCliente('')
-      setQuantidade('')
-      setValorUnit('')
+      limparFormulario()
       setTimeout(() => setSucesso(false), 3000)
+    } catch (err) {
+      setErro(err.message)
+    } finally {
+      setLoading(false)
     }
   }
+
+  if (loadingAuth) return (
+    <main className="min-h-screen bg-amber-50 flex items-center justify-center">
+      <div className="text-amber-800 text-xl">Carregando...</div>
+    </main>
+  )
 
   return (
     <main className="min-h-screen bg-amber-50 p-8">
@@ -69,41 +65,70 @@ export default function NovaVenda() {
           </div>
         )}
 
+        {erro && (
+          <div className="bg-red-100 text-red-800 p-4 rounded-xl mb-4 text-sm">
+            ❌ {erro}
+          </div>
+        )}
+
         <div className="bg-white rounded-xl p-6 shadow space-y-4">
+
+          {/* Produto */}
           <div>
             <label className="block text-amber-900 font-bold mb-1">Produto *</label>
-            <select value={produto} onChange={e => setProduto(e.target.value)}
-              className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500">
+            <select
+              value={produto}
+              onChange={e => setProduto(e.target.value)}
+              className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500"
+            >
               <option value="">Selecione...</option>
               {PRODUTOS.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
 
+          {/* Cliente */}
           <div>
             <label className="block text-amber-900 font-bold mb-1">Cliente</label>
-            <input value={cliente} onChange={e => setCliente(e.target.value)}
+            <input
+              value={cliente}
+              onChange={e => setCliente(e.target.value)}
               placeholder="Nome do cliente"
-              className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500" />
+              className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500"
+            />
           </div>
 
+          {/* Quantidade */}
           <div>
             <label className="block text-amber-900 font-bold mb-1">
               Quantidade * {produto === 'Atacado' ? '(baldes)' : '(unidades)'}
             </label>
-            <input type="number" value={quantidade} onChange={e => setQuantidade(e.target.value)}
+            <input
+              type="number"
+              min="1"
+              value={quantidade}
+              onChange={e => setQuantidade(e.target.value)}
               placeholder="0"
-              className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500" />
+              className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500"
+            />
           </div>
 
+          {/* Valor unitário */}
           <div>
             <label className="block text-amber-900 font-bold mb-1">
               Valor Unitário (R$) * {produto === 'Atacado' ? '— por kg' : '— por unidade'}
             </label>
-            <input type="number" value={valorUnit} onChange={e => setValorUnit(e.target.value)}
-              placeholder="0.00"
-              className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500" />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={valorUnit}
+              onChange={e => setValorUnit(e.target.value)}
+              placeholder="0,00"
+              className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500"
+            />
           </div>
 
+          {/* Preview do total */}
           {quantidade && valorUnit && (
             <div className="bg-amber-100 rounded-lg p-4 text-center">
               <div className="text-amber-700 text-sm">Total da Venda</div>
@@ -116,10 +141,24 @@ export default function NovaVenda() {
             </div>
           )}
 
-          <button onClick={salvarVenda} disabled={loading}
-            className="w-full bg-amber-800 text-white py-3 rounded-xl font-bold text-lg hover:bg-amber-900 transition disabled:opacity-50">
-            {loading ? 'Salvando...' : '💾 Salvar Venda'}
-          </button>
+          {/* Botões */}
+          <div className="flex gap-3">
+            <button
+              onClick={limparFormulario}
+              disabled={loading}
+              className="flex-1 border border-amber-300 text-amber-800 py-3 rounded-xl font-bold hover:bg-amber-50 transition disabled:opacity-50"
+            >
+              🗑 Limpar
+            </button>
+            <button
+              onClick={salvarVenda}
+              disabled={loading || !produto || !quantidade || !valorUnit}
+              className="flex-1 bg-amber-800 text-white py-3 rounded-xl font-bold text-lg hover:bg-amber-900 transition disabled:opacity-50"
+            >
+              {loading ? 'Salvando...' : '💾 Salvar'}
+            </button>
+          </div>
+
         </div>
       </div>
     </main>

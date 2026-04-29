@@ -1,24 +1,12 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { supabase } from './supabase'
+import { useAuth } from '@/hooks/useAuth'
+import { logout } from '@/services/authService'
 
 export default function Home() {
-  const [loading, setLoading] = useState(true)
-  const [usuario, setUsuario] = useState<any>(null)
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        window.location.href = '/login'
-      } else {
-        setUsuario(session.user)
-        setLoading(false)
-      }
-    })
-  }, [])
+  const { usuario, loading } = useAuth()
 
   async function sair() {
-    await supabase.auth.signOut()
+    await logout()
     window.location.href = '/login'
   }
 
@@ -37,12 +25,15 @@ export default function Home() {
           </h1>
           <div className="flex items-center gap-4">
             <span className="text-amber-700 text-sm">{usuario?.email}</span>
-            <button onClick={sair}
-              className="bg-amber-100 text-amber-800 px-4 py-2 rounded-lg text-sm hover:bg-amber-200 transition">
+            <button
+              onClick={sair}
+              className="bg-amber-100 text-amber-800 px-4 py-2 rounded-lg text-sm hover:bg-amber-200 transition"
+            >
               Sair
             </button>
           </div>
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <a href="/vendas/nova" className="bg-amber-800 text-white p-6 rounded-xl text-center hover:bg-amber-900 transition">
             <div className="text-4xl mb-2">🛒</div>

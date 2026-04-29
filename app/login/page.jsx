@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { supabase } from '../supabase'
+import { login } from '@/services/authService'
+import { supabase } from '@/lib/supabase'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -21,22 +22,29 @@ export default function Login() {
       return
     }
 
-    if (modo === 'cadastro') {
-      const { error } = await supabase.auth.signUp({ email, password: senha })
-      if (error) {
-        setErro('Erro ao cadastrar: ' + error.message)
-      } else {
+    try {
+      if (modo === 'cadastro') {
+        const { error } = await supabase.auth.signUp({ email, password: senha })
+        if (error) throw new Error('Erro ao cadastrar: ' + error.message)
         setSucesso('Cadastro realizado! Verifique seu email para confirmar.')
-      }
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
-      if (error) {
-        setErro('Email ou senha incorretos!')
       } else {
+        await login(email, senha)
         window.location.href = '/'
       }
+    } catch (err) {
+      setErro(err.message === 'Invalid login credentials'
+        ? 'Email ou senha incorretos!'
+        : err.message
+      )
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
+  }
+
+  function alternarModo() {
+    setModo(modo === 'login' ? 'cadastro' : 'login')
+    setErro('')
+    setSucesso('')
   }
 
   return (
@@ -47,30 +55,49 @@ export default function Login() {
           {modo === 'login' ? 'Entrar no Sistema' : 'Criar Conta'}
         </h2>
 
-        {erro && <div className="bg-red-100 text-red-800 p-3 rounded-lg mb-4 text-sm">{erro}</div>}
-        {sucesso && <div className="bg-green-100 text-green-800 p-3 rounded-lg mb-4 text-sm">{sucesso}</div>}
+        {erro && (
+          <div className="bg-red-100 text-red-800 p-3 rounded-lg mb-4 text-sm">{erro}</div>
+        )}
+        {sucesso && (
+          <div className="bg-green-100 text-green-800 p-3 rounded-lg mb-4 text-sm">{sucesso}</div>
+        )}
 
         <div className="space-y-4">
           <div>
             <label className="block text-amber-900 font-bold mb-1">Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               placeholder="seu@email.com"
-              className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500" />
+              className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500"
+            />
           </div>
           <div>
             <label className="block text-amber-900 font-bold mb-1">Senha</label>
-            <input type="password" value={senha} onChange={e => setSenha(e.target.value)}
+            <input
+              type="password"
+              value={senha}
+              onChange={e => setSenha(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               placeholder="••••••••"
-              className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500" />
+              className="w-full border border-amber-200 rounded-lg p-3 focus:outline-none focus:border-amber-500"
+            />
           </div>
 
-          <button onClick={handleSubmit} disabled={loading}
-            className="w-full bg-amber-800 text-white py-3 rounded-xl font-bold text-lg hover:bg-amber-900 transition disabled:opacity-50">
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full bg-amber-800 text-white py-3 rounded-xl font-bold text-lg hover:bg-amber-900 transition disabled:opacity-50"
+          >
             {loading ? 'Aguarde...' : modo === 'login' ? '🔑 Entrar' : '✅ Criar Conta'}
           </button>
 
-          <button onClick={() => { setModo(modo === 'login' ? 'cadastro' : 'login'); setErro(''); setSucesso('') }}
-            className="w-full text-amber-700 text-sm hover:text-amber-900 transition">
+          <button
+            onClick={alternarModo}
+            className="w-full text-amber-700 text-sm hover:text-amber-900 transition"
+          >
             {modo === 'login' ? 'Não tem conta? Cadastre-se' : 'Já tem conta? Entrar'}
           </button>
         </div>
