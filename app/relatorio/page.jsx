@@ -58,12 +58,15 @@ export default function Relatorio() {
     }
   }
 
+  // ← ESSA LINHA ESTAVA FALTANDO
+  const vendasFiltradas = vendas.filter(v => v.mes === mesSelecionado)
+
   const gastosFiltrados = gastos.filter(g => {
-  if (!g.created_at) return false
-  const data = new Date(g.created_at)
-  const mesExtenso = data.toLocaleString('pt-BR', { month: 'long' }) + '/' + data.getFullYear()
-  return mesExtenso === mesSelecionado
-})
+    if (!g.created_at) return false
+    const data = new Date(g.created_at)
+    const mesExtenso = data.toLocaleString('pt-BR', { month: 'long' }) + '/' + data.getFullYear()
+    return mesExtenso === mesSelecionado
+  })
 
   function totalProduto(produto) {
     return calcularTotalPorProduto(vendasFiltradas, produto)
@@ -88,7 +91,6 @@ export default function Relatorio() {
   const saldoMes = totalMes - totalGastosMes
   const ticketMedio = vendasFiltradas.length > 0 ? totalMes / vendasFiltradas.length : 0
 
-  // ── Exportar PDF ────────────────────────────────────────────────────────────
   async function exportarPDF() {
     setExportando(true)
     try {
@@ -110,7 +112,6 @@ export default function Relatorio() {
       doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, W - margin, 22, { align: 'right' })
       y = 42
 
-      // Cards resumo (agora 4: vendas, gastos, saldo, ticket)
       doc.setTextColor(0, 0, 0)
       const cardW = (W - margin * 2 - 15) / 4
       const cards = [
@@ -134,7 +135,6 @@ export default function Relatorio() {
       })
       y += 28
 
-      // Tabela produtos
       doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(0, 0, 0)
@@ -180,7 +180,6 @@ export default function Relatorio() {
       doc.text(`R$ ${totalMes.toFixed(2).replace('.', ',')}`, colX[4] + 2, y + 5.5)
       y += 14
 
-      // Tabela gastos por categoria
       if (y > 220) { doc.addPage(); y = 20 }
       doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
@@ -218,7 +217,6 @@ export default function Relatorio() {
       doc.text(`R$ ${totalGastosMes.toFixed(2).replace('.', ',')}`, W - margin - 2, y + 5.5, { align: 'right' })
       y += 14
 
-      // Saldo final
       if (y > 250) { doc.addPage(); y = 20 }
       doc.setFillColor(saldoMes >= 0 ? 21 : 185, saldoMes >= 0 ? 128 : 28, saldoMes >= 0 ? 61 : 28)
       doc.rect(margin, y, W - margin * 2, 12, 'F')
@@ -229,7 +227,6 @@ export default function Relatorio() {
       doc.text(`R$ ${saldoMes.toFixed(2).replace('.', ',')}`, W - margin - 2, y + 8, { align: 'right' })
       y += 20
 
-      // Ranking
       if (y > 220) { doc.addPage(); y = 20 }
       doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
@@ -252,7 +249,6 @@ export default function Relatorio() {
       })
       y += 8
 
-      // Histórico vendas
       if (y > 220) { doc.addPage(); y = 20 }
       doc.setFontSize(12)
       doc.setFont('helvetica', 'bold')
@@ -290,7 +286,6 @@ export default function Relatorio() {
         y += 7
       })
 
-      // Rodapé
       const totalPages = doc.internal.getNumberOfPages()
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i)
@@ -334,7 +329,6 @@ export default function Relatorio() {
           <div className="bg-red-100 text-red-800 p-3 rounded-lg mb-4 text-sm">{erro}</div>
         )}
 
-        {/* Filtro de mês */}
         <div className="bg-white rounded-xl p-4 shadow mb-6 flex flex-wrap items-center gap-4">
           <label className="font-bold text-amber-900">Período:</label>
           <select
@@ -360,7 +354,6 @@ export default function Relatorio() {
           </div>
         </div>
 
-        {/* Cards de balanço */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-amber-100 rounded-xl p-5 text-center shadow">
             <div className="text-xs text-amber-700 mb-1">💰 Total Vendido</div>
@@ -378,7 +371,6 @@ export default function Relatorio() {
           </div>
         </div>
 
-        {/* Gastos por categoria */}
         <div className="bg-white rounded-xl shadow overflow-hidden mb-6">
           <div className="bg-red-700 text-white p-4 font-bold">💸 Gastos por Categoria</div>
           {CATEGORIAS_GASTO.map(cat => {
@@ -400,7 +392,6 @@ export default function Relatorio() {
           </div>
         </div>
 
-        {/* Tabela de produtos */}
         <div className="bg-white rounded-xl shadow overflow-hidden mb-6">
           <div className="bg-amber-800 text-white p-4 font-bold grid grid-cols-5 text-center">
             <div>Produto</div>
@@ -427,7 +418,6 @@ export default function Relatorio() {
           </div>
         </div>
 
-        {/* Ranking */}
         <div className="bg-white rounded-xl shadow overflow-hidden mb-6">
           <div className="bg-amber-700 text-white p-4 font-bold">🏆 Ranking do Mês</div>
           {[...PRODUTOS]
@@ -442,7 +432,6 @@ export default function Relatorio() {
             ))}
         </div>
 
-        {/* Histórico */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
           <div className="bg-amber-700 text-white p-4 font-bold">📅 Histórico — Todos os Meses</div>
           {mesesDisponiveis.length === 0 ? (
