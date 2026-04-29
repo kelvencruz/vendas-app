@@ -34,7 +34,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <a href="/vendas/nova" className="bg-amber-800 text-white p-6 rounded-xl text-center hover:bg-amber-900 transition">
             <div className="text-4xl mb-2">🛒</div>
             <div className="font-bold text-lg">Nova Venda</div>
@@ -46,6 +46,10 @@ export default function Home() {
           <a href="/relatorio" className="bg-amber-500 text-white p-6 rounded-xl text-center hover:bg-amber-600 transition">
             <div className="text-4xl mb-2">📊</div>
             <div className="font-bold text-lg">Relatório</div>
+          </a>
+          <a href="/gastos/nova" className="bg-red-500 text-white p-6 rounded-xl text-center hover:bg-red-600 transition">
+            <div className="text-4xl mb-2">💸</div>
+            <div className="font-bold text-lg">Registrar Gasto</div>
           </a>
         </div>
       </div>
