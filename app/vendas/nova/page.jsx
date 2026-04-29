@@ -17,47 +17,18 @@ export default function NovaVenda() {
     : Number(quantidade) * Number(valorUnit)
 
   async function salvarVenda() {
-  if (!produto || !quantidade || !valorUnit) {
-    alert('Preencha todos os campos obrigatórios!')
-    return
-  }
-  setLoading(true)
-
-  // Pega o usuário logado
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) {
-    window.location.href = '/login'
-    return
-  }
-
-  const agora = new Date()
-  const mes = agora.toLocaleString('pt-BR', { month: 'long' }) + '/' + agora.getFullYear()
-
-  const { error } = await supabase.from('vendas').insert([{
-    data: agora.toISOString().split('T')[0],
-    hora: agora.toTimeString().split(' ')[0],
-    produto,
-    cliente,
-    quantidade: Number(quantidade),
-    valor_unitario: Number(valorUnit),
-    total_venda: totalVenda,
-    mes,
-    user_id: session.user.id  // ← isolamento por usuário
-  }])
-
-  setLoading(false)
-  if (error) {
-    alert('Erro ao salvar: ' + error.message)
-  } else {
-    setSucesso(true)
-    setProduto('')
-    setCliente('')
-    setQuantidade('')
-    setValorUnit('')
-    setTimeout(() => setSucesso(false), 3000)
-  }
-}
+    if (!produto || !quantidade || !valorUnit) {
+      alert('Preencha todos os campos obrigatórios!')
+      return
+    }
     setLoading(true)
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      window.location.href = '/login'
+      return
+    }
+
     const agora = new Date()
     const mes = agora.toLocaleString('pt-BR', { month: 'long' }) + '/' + agora.getFullYear()
 
@@ -69,7 +40,8 @@ export default function NovaVenda() {
       quantidade: Number(quantidade),
       valor_unitario: Number(valorUnit),
       total_venda: totalVenda,
-      mes
+      mes,
+      user_id: session.user.id
     }])
 
     setLoading(false)
